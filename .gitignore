@@ -18,3 +18,8 @@ ObjectExporter.VsPackage/obj/
 ObjectExporter.VsPackage/Resources
 ObjectExporter.Core/ApiKeys.cs
 ObjectExporter.VsPackage/Documentation/Thumbs.db
+/.vs/ObjectExporter/v16/Server/sqlite3
+/packages
+/UpgradeLog.htm
+/.vs/ObjectExporter/config
+/.vs/ObjectExporter/v16/TestStore/0

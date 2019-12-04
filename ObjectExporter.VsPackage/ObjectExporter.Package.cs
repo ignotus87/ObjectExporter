@@ -3,6 +3,7 @@ using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Threading;
 using EnvDTE;
 using EnvDTE80;
 using Microsoft.VisualStudio.Shell;
@@ -25,18 +26,17 @@ namespace ObjectExporter.VsPackage
     /// </summary>
     // This attribute tells the PkgDef creation utility (CreatePkgDef.exe) that this class is
     // a package.
-    [PackageRegistration(UseManagedResourcesOnly = true)]
+    [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     // This attribute is used to register the information needed to show this package
     // in the Help/About dialog of Visual Studio.
-    [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)]
+    [InstalledProductRegistration("#110", "#112", "1.1", IconResourceID = 400)]
     // This attribute is needed to let the shell know that this package exposes some menus.
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [Guid(GuidList.guidObjectExporter_PkgString)]
     //Used for the hidden menu item
-    [ProvideAutoLoad(UIContextGuids80.SolutionExists)]
-    [ProvideOptionPage(typeof(PackageSettings),
-    "Object Exporter", "General", 0, 0, true)]
-    public sealed class ObjectExporter : Package
+    [ProvideAutoLoad(UIContextGuids80.SolutionExists, PackageAutoLoadFlags.BackgroundLoad)]
+    [ProvideOptionPage(typeof(PackageSettings), "Object Exporter", "General", 0, 0, true)]
+    public sealed class ObjectExporter : AsyncPackage
     {
         private readonly DTE2 _dte2 = GetGlobalService(typeof(DTE)) as DTE2;
         private PackageSettings _packageSettings;
@@ -60,13 +60,13 @@ namespace ObjectExporter.VsPackage
         /// Initialization of the package; this method is called right after the package is sited, so this is the place
         /// where you can put all the initialization code that rely on services provided by VisualStudio.
         /// </summary>
-        protected override void Initialize()
+        protected override async System.Threading.Tasks.Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
         {
             Debug.WriteLine(string.Format(CultureInfo.CurrentCulture, "Entering Initialize() of: {0}", ToString()));
-            base.Initialize();
+            await base.InitializeAsync(cancellationToken, progress);
 
             // Add our command handlers for menu (commands must exist in the .vsct file)
-            OleMenuCommandService mcs = GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
+            OleMenuCommandService mcs = await GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
             if (null != mcs)
             {
                 // Create the command for the menu item.
@@ -88,6 +88,9 @@ namespace ObjectExporter.VsPackage
             };
 
             Raygun.Initialize(info);
+
+            // Switches to the UI thread in order to consume some services used in command initialization
+            await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
         }
 
         void menuItem_BeforeQueryStatus(object sender, EventArgs e)
